@@ -24,14 +24,22 @@ export default function Analytics({ classId, onBack }) {
     fetchAnalyticsData();
   }, [classId]);
 
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchAnalyticsData();
+  };
+
   const fetchAnalyticsData = async () => {
     try {
+      console.log('Fetching analytics for class:', classId);
+      
       // Fetch class data
       const classDoc = await getDocs(query(collection(db, 'classes'), where('__name__', '==', classId)));
-      const classInfo = classDoc.docs[0]?.data();
-      setClassData({ id: classId, ...classInfo });
+      const classInfo = classDoc.empty ? null : { id: classId, ...classDoc.docs[0].data() };
+      setClassData(classInfo);
 
       // Fetch students
+      let studentData = [];
       if (classInfo?.students && classInfo.students.length > 0) {
         const studentPromises = classInfo.students.map(async (studentId) => {
           const studentDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', studentId)));
@@ -40,7 +48,7 @@ export default function Analytics({ classId, onBack }) {
           }
           return null;
         });
-        const studentData = (await Promise.all(studentPromises)).filter(s => s !== null);
+        studentData = (await Promise.all(studentPromises)).filter(s => s !== null);
         setStudents(studentData);
       }
 
@@ -153,10 +161,19 @@ export default function Analytics({ classId, onBack }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-800">Analytics Dashboard</h1>
               <p className="text-gray-600 text-sm">{classData?.name}</p>
             </div>
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
           </div>
         </div>
       </header>
