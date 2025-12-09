@@ -238,15 +238,11 @@ export default function StudentDashboard() {
                 </div>
 
                 <div className="border-t border-gray-200 pt-3 sm:pt-4 mb-3 sm:mb-4">
-                  <div className="bg-gray-50 rounded-lg p-2 sm:p-3 text-center mb-2 sm:mb-3">
-                    <span className="text-xs sm:text-sm text-gray-600 block mb-1">Class Code</span>
-                    <span className="text-base sm:text-lg font-bold text-gray-800 tracking-wider">{classItem.code}</span>
-                  </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
-                    <span>{classItem.students ? classItem.students.length : 0} students</span>
+                    <span>{classItem.students ? classItem.students.length : 0} students enrolled</span>
                   </div>
                 </div>
 
