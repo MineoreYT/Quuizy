@@ -5,6 +5,7 @@ import TakeQuiz from './TakeQuiz';
 import StudentClassView from './StudentClassView';
 import Toast from '../Toast';
 import { useToast } from '../../hooks/useToast';
+import { sanitizeClassCode } from '../../utils/sanitize';
 
 export default function StudentDashboard() {
   const [classes, setClasses] = useState([]);
@@ -81,9 +82,12 @@ export default function StudentDashboard() {
     try {
       const user = auth.currentUser;
       
+      // Sanitize class code before querying
+      const sanitizedCode = sanitizeClassCode(classCode);
+      
       const q = query(
         collection(db, 'classes'),
-        where('code', '==', classCode.toUpperCase())
+        where('code', '==', sanitizedCode)
       );
       
       const querySnapshot = await getDocs(q);

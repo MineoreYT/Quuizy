@@ -5,6 +5,7 @@ import ClassDetails from './ClassDetails';
 import Toast from '../Toast';
 import ConfirmModal from '../ConfirmModal';
 import { useToast } from '../../hooks/useToast';
+import { sanitizeText, sanitizeUrl } from '../../utils/sanitize';
 
 export default function TeacherDashboard() {
   const [classes, setClasses] = useState([]);
@@ -109,9 +110,13 @@ export default function TeacherDashboard() {
       const user = auth.currentUser;
       const classCode = generateClassCode();
       
+      // Sanitize inputs
+      const sanitizedName = sanitizeText(newClassName, 200);
+      const sanitizedDescription = sanitizeText(newClassDescription, 1000);
+      
       const newClass = {
-        name: newClassName,
-        description: newClassDescription,
+        name: sanitizedName,
+        description: sanitizedDescription,
         code: classCode,
         teacherId: user.uid,
         teacherName: userName,
@@ -202,12 +207,18 @@ export default function TeacherDashboard() {
     setIsUploadingLesson(true);
 
     try {
-      // Filter out empty links
-      const validLinks = lessonLinks.filter(link => link.trim());
+      // Sanitize inputs
+      const sanitizedTitle = sanitizeText(lessonTitle, 200);
+      const sanitizedContent = sanitizeText(lessonContent, 10000);
+      
+      // Filter and sanitize links
+      const validLinks = lessonLinks
+        .map(link => sanitizeUrl(link))
+        .filter(link => link.length > 0);
 
       const lessonData = {
-        title: lessonTitle,
-        content: lessonContent,
+        title: sanitizedTitle,
+        content: sanitizedContent,
         links: validLinks,
         classId: selectedClass.id,
         createdAt: new Date().toISOString(),
@@ -252,9 +263,20 @@ export default function TeacherDashboard() {
     }
 
     try {
-      const quizData = {
+      // Sanitize quiz data
+      const sanitizedQuiz = sanitizeQuizData({
         title: quizTitle,
-        questions: questions,
+        questions: questions
+      });
+      
+      if (!sanitizedQuiz) {
+        showToast('Invalid quiz data. Please check your inputs.', 'error');
+        return;
+      }
+      
+      const quizData = {
+        title: sanitizedQuiz.title,
+        questions: sanitizedQuiz.questions,
         classId: selectedClass.id,
         deadline: quizDeadline || null,
         createdAt: new Date().toISOString(),

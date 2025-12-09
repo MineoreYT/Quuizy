@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { registerUser } from '../../services/AuthService';
+import { sanitizeText, sanitizeEmail } from '../../utils/sanitize';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -65,10 +66,14 @@ export default function Register() {
     setErrors({});
 
     try {
+      // Sanitize inputs before sending to Firebase
+      const sanitizedName = sanitizeText(formData.fullName, 100);
+      const sanitizedEmail = sanitizeEmail(formData.email);
+      
       // Register user with Firebase
       await registerUser(
-        formData.fullName,
-        formData.email,
+        sanitizedName,
+        sanitizedEmail,
         formData.password,
         formData.role
       );

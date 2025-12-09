@@ -6,6 +6,7 @@ import ConfirmModal from '../ConfirmModal';
 import { useToast } from '../../hooks/useToast';
 import Analytics from './Analytics';
 import StudentProfile from './StudentProfile';
+import { sanitizeQuizData, sanitizeText, sanitizeUrl, sanitizeArray } from '../../utils/sanitize';
 
 export default function ClassDetails({ classId, onBack }) {
   const [classData, setClassData] = useState(null);
