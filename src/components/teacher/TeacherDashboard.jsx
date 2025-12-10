@@ -263,20 +263,18 @@ export default function TeacherDashboard() {
     }
 
     try {
-      // Sanitize quiz data (improved version)
-      const sanitizedQuiz = sanitizeQuizData({
-        title: quizTitle,
-        questions: questions
-      });
-      
-      if (!sanitizedQuiz) {
-        showToast('Invalid quiz data. Please check your inputs.', 'error');
-        return;
-      }
+      // Basic sanitization only (remove HTML tags)
+      const sanitizedTitle = sanitizeText(quizTitle, 200);
+      const sanitizedQuestions = questions.map(q => ({
+        ...q,
+        question: sanitizeText(q.question, 500),
+        options: q.options ? q.options.map(opt => sanitizeText(opt, 200)) : q.options,
+        correctAnswer: q.type === 'enumeration' ? sanitizeText(q.correctAnswer, 200) : q.correctAnswer
+      }));
       
       const quizData = {
-        title: sanitizedQuiz.title,
-        questions: sanitizedQuiz.questions,
+        title: sanitizedTitle,
+        questions: sanitizedQuestions,
         classId: selectedClass.id,
         deadline: quizDeadline || null,
         createdAt: new Date().toISOString(),
