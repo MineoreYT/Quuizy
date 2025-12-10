@@ -118,8 +118,10 @@ export default function Analytics({ classId, onBack }) {
       };
     }).sort((a, b) => b.average - a.average);
 
-    // Top performers (top 5)
-    const topPerformers = studentProgress.slice(0, 5);
+    // Top performers (top 5 who have taken quizzes and scored > 0)
+    const topPerformers = studentProgress
+      .filter(s => s.quizzesTaken > 0 && s.average > 0)
+      .slice(0, 5);
 
     // Students who need help (bottom 5 with average < 70)
     const needsHelp = studentProgress
