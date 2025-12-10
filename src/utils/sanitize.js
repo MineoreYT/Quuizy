@@ -164,7 +164,7 @@ export const sanitizeQuizQuestion = (question) => {
 };
 
 /**
- * Validate quiz data before submission
+ * Validate quiz data before submission (lenient version)
  * @param {Object} quizData - Quiz data to validate
  * @returns {Object|null} - Sanitized quiz or null if invalid
  */
@@ -175,20 +175,23 @@ export const sanitizeQuizData = (quizData) => {
   
   const sanitized = {
     title: sanitizeText(quizData.title, 200),
-    description: sanitizeText(quizData.description, 1000),
     questions: [],
   };
   
-  // Validate title
-  if (!sanitized.title || sanitized.title.length < 3) {
+  // Validate title (more lenient - just need some text)
+  if (!sanitized.title || sanitized.title.length < 1) {
     return null;
   }
   
-  // Sanitize questions
+  // Sanitize questions (more lenient)
   if (Array.isArray(quizData.questions)) {
     sanitized.questions = quizData.questions
-      .map(q => sanitizeQuizQuestion(q))
-      .filter(q => q !== null && q.question.length > 0);
+      .map(q => {
+        const sanitizedQ = sanitizeQuizQuestion(q);
+        // More lenient - just need a question
+        return sanitizedQ && sanitizedQ.question.length > 0 ? sanitizedQ : null;
+      })
+      .filter(q => q !== null);
   }
   
   // Must have at least 1 question
