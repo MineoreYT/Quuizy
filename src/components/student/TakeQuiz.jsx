@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db, auth } from '../../config/firebase';
+import { calculateStudentPoints, calculatePercentage, getLetterGrade } from '../../utils/grading';
 
 export default function TakeQuiz({ classId, onBack }) {
   const [quizzes, setQuizzes] = useState([]);
@@ -93,25 +94,12 @@ export default function TakeQuiz({ classId, onBack }) {
       }
     }
 
-    let correctCount = 0;
-    selectedQuiz.questions.forEach((question, index) => {
-      if (question.type === 'enumeration') {
-        // Case-insensitive comparison for enumeration questions
-        const userAnswer = (answers[index] || '').toString().trim().toLowerCase();
-        const correctAnswer = question.correctAnswer.toString().trim().toLowerCase();
-        if (userAnswer === correctAnswer) {
-          correctCount++;
-        }
-      } else {
-        // Multiple choice comparison
-        if (answers[index] === question.correctAnswer) {
-          correctCount++;
-        }
-      }
-    });
+    // Calculate points using the new grading system
+    const { pointsEarned, pointsPerQuestion, totalPoints } = calculateStudentPoints(selectedQuiz.questions, answers);
+    const percentage = calculatePercentage(pointsEarned, totalPoints);
+    const letterGrade = getLetterGrade(percentage, selectedQuiz.gradingScale);
 
-    const finalScore = Math.round((correctCount / selectedQuiz.questions.length) * 100);
-    setScore(finalScore);
+    setScore(percentage);
     setShowResults(true);
 
     try {
@@ -120,8 +108,13 @@ export default function TakeQuiz({ classId, onBack }) {
         classId: classId,
         studentId: auth.currentUser.uid,
         answers: answers,
-        score: finalScore,
-        correctAnswers: correctCount,
+        score: percentage, // Keep for backward compatibility
+        percentage: percentage,
+        pointsEarned: pointsEarned,
+        totalPoints: totalPoints,
+        pointsPerQuestion: pointsPerQuestion,
+        letterGrade: letterGrade.letter,
+        correctAnswers: pointsPerQuestion.filter(p => p > 0).length,
         totalQuestions: selectedQuiz.questions.length,
         submittedAt: new Date().toISOString()
       });
@@ -172,22 +165,49 @@ export default function TakeQuiz({ classId, onBack }) {
             </div>
 
             <h2 className="text-3xl font-bold text-gray-800 mb-2">Quiz Completed!</h2>
-            <p className="text-gray-600 mb-8">
-              You got {Object.keys(answers).filter(key => answers[key] === selectedQuiz.questions[key].correctAnswer).length} out of {selectedQuiz.questions.length} questions correct
-            </p>
+            <div className="text-center mb-8">
+              <div className="flex justify-center items-center gap-4 mb-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Points Earned</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {(() => {
+                      const { pointsEarned, totalPoints } = calculateStudentPoints(selectedQuiz.questions, answers);
+                      return `${pointsEarned}/${totalPoints}`;
+                    })()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">Letter Grade</p>
+                  <p className="text-2xl font-bold" style={{ 
+                    color: (() => {
+                      const { pointsEarned, totalPoints } = calculateStudentPoints(selectedQuiz.questions, answers);
+                      const percentage = calculatePercentage(pointsEarned, totalPoints);
+                      return getLetterGrade(percentage, selectedQuiz.gradingScale).color;
+                    })()
+                  }}>
+                    {(() => {
+                      const { pointsEarned, totalPoints } = calculateStudentPoints(selectedQuiz.questions, answers);
+                      const percentage = calculatePercentage(pointsEarned, totalPoints);
+                      return getLetterGrade(percentage, selectedQuiz.gradingScale).letter;
+                    })()}
+                  </p>
+                </div>
+              </div>
+              <p className="text-gray-600">
+                You got {(() => {
+                  const { pointsPerQuestion } = calculateStudentPoints(selectedQuiz.questions, answers);
+                  return pointsPerQuestion.filter(p => p > 0).length;
+                })()} out of {selectedQuiz.questions.length} questions correct
+              </p>
+            </div>
 
             <div className="space-y-4 mb-8 max-h-96 overflow-y-auto">
               {selectedQuiz.questions.map((question, index) => {
                 const userAnswer = answers[index];
-                let isCorrect = false;
-                
-                if (question.type === 'enumeration') {
-                  const userAns = (userAnswer || '').toString().trim().toLowerCase();
-                  const correctAns = question.correctAnswer.toString().trim().toLowerCase();
-                  isCorrect = userAns === correctAns;
-                } else {
-                  isCorrect = userAnswer === question.correctAnswer;
-                }
+                const { pointsPerQuestion } = calculateStudentPoints(selectedQuiz.questions, answers);
+                const earnedPoints = pointsPerQuestion[index];
+                const maxPoints = question.points || 1;
+                const isCorrect = earnedPoints > 0;
 
                 return (
                   <div key={index} className={`p-4 rounded-lg border-2 ${
@@ -208,7 +228,14 @@ export default function TakeQuiz({ classId, onBack }) {
                         )}
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-800 mb-2">{question.question}</p>
+                        <div className="flex justify-between items-start mb-2">
+                          <p className="font-medium text-gray-800">{question.question}</p>
+                          <span className={`text-sm font-bold px-2 py-1 rounded ${
+                            isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {earnedPoints}/{maxPoints} pts
+                          </span>
+                        </div>
                         {question.type === 'enumeration' ? (
                           <>
                             <p className="text-sm text-gray-600">

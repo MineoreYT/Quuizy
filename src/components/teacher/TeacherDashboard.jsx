@@ -6,6 +6,7 @@ import Toast from '../Toast';
 import ConfirmModal from '../ConfirmModal';
 import { useToast } from '../../hooks/useToast';
 import { sanitizeText, sanitizeUrl } from '../../utils/sanitize';
+import { DEFAULT_GRADING_SCALES, calculateTotalPoints } from '../../utils/grading';
 
 export default function TeacherDashboard() {
   const [classes, setClasses] = useState([]);
@@ -30,8 +31,14 @@ export default function TeacherDashboard() {
   const [quizTitle, setQuizTitle] = useState('');
   const [quizDeadline, setQuizDeadline] = useState('');
   const [questions, setQuestions] = useState([
-    { type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0 }
+    { type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 }
   ]);
+  
+  // Grading system state
+  const [gradingScale, setGradingScale] = useState('traditional');
+  const [customGradingScale, setCustomGradingScale] = useState(null);
+  const [passingGrade, setPassingGrade] = useState(70);
+  const [totalPoints, setTotalPoints] = useState(1);
 
   // Toast and confirmation modal
   const { toasts, showToast, removeToast } = useToast();
@@ -41,6 +48,14 @@ export default function TeacherDashboard() {
     fetchUserData();
     fetchClasses();
   }, []);
+
+  // Update total points when questions change
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      const total = calculateTotalPoints(questions);
+      setTotalPoints(total);
+    }
+  }, [questions]);
 
   const fetchUserData = async () => {
     try {
@@ -144,18 +159,20 @@ export default function TeacherDashboard() {
 
   const handleAddQuestion = (type = 'multiple-choice') => {
     if (type === 'enumeration') {
-      setQuestions([...questions, { type: 'enumeration', question: '', correctAnswer: '' }]);
+      setQuestions([...questions, { type: 'enumeration', question: '', correctAnswer: '', points: 1 }]);
     } else {
-      setQuestions([...questions, { type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+      setQuestions([...questions, { type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 }]);
     }
+    updateTotalPoints();
   };
 
   const handleQuestionTypeChange = (index, type) => {
     const newQuestions = [...questions];
+    const currentPoints = newQuestions[index].points || 1;
     if (type === 'enumeration') {
-      newQuestions[index] = { type: 'enumeration', question: newQuestions[index].question, correctAnswer: '' };
+      newQuestions[index] = { type: 'enumeration', question: newQuestions[index].question, correctAnswer: '', points: currentPoints };
     } else {
-      newQuestions[index] = { type: 'multiple-choice', question: newQuestions[index].question, options: ['', '', '', ''], correctAnswer: 0 };
+      newQuestions[index] = { type: 'multiple-choice', question: newQuestions[index].question, options: ['', '', '', ''], correctAnswer: 0, points: currentPoints };
     }
     setQuestions(newQuestions);
   };
@@ -163,6 +180,7 @@ export default function TeacherDashboard() {
   const handleRemoveQuestion = (index) => {
     if (questions.length > 1) {
       setQuestions(questions.filter((_, i) => i !== index));
+      updateTotalPoints();
     }
   };
 
@@ -182,6 +200,22 @@ export default function TeacherDashboard() {
     const newQuestions = [...questions];
     newQuestions[qIndex].correctAnswer = value;
     setQuestions(newQuestions);
+  };
+
+  const handlePointsChange = (qIndex, points) => {
+    const newQuestions = [...questions];
+    newQuestions[qIndex].points = Math.max(1, parseInt(points) || 1);
+    setQuestions(newQuestions);
+    updateTotalPoints();
+  };
+
+  const updateTotalPoints = () => {
+    setTimeout(() => {
+      if (questions && questions.length > 0) {
+        const total = calculateTotalPoints(questions);
+        setTotalPoints(total);
+      }
+    }, 0);
   };
 
   const handleAddLink = () => {
@@ -263,31 +297,85 @@ export default function TeacherDashboard() {
     }
 
     try {
-      // Basic sanitization only (remove HTML tags)
+      // Basic sanitization only (remove HTML tags) with strict undefined checking
       const sanitizedTitle = sanitizeText(quizTitle, 200);
-      const sanitizedQuestions = questions.map(q => ({
-        ...q,
-        question: sanitizeText(q.question, 500),
-        options: q.options ? q.options.map(opt => sanitizeText(opt, 200)) : q.options,
-        correctAnswer: q.type === 'enumeration' ? sanitizeText(q.correctAnswer, 200) : q.correctAnswer
-      }));
+      const sanitizedQuestions = questions.map(q => {
+        const baseQuestion = {
+          type: q.type || 'multiple-choice',
+          question: sanitizeText(q.question || '', 500),
+          points: q.points || 1
+        };
+
+        if (q.type === 'enumeration') {
+          return {
+            ...baseQuestion,
+            correctAnswer: sanitizeText(q.correctAnswer || '', 200)
+          };
+        } else {
+          return {
+            ...baseQuestion,
+            options: q.options ? q.options.map(opt => sanitizeText(opt || '', 200)) : ['', '', '', ''],
+            correctAnswer: q.correctAnswer || 0
+          };
+        }
+      });
       
+      // Ensure we have a valid grading scale
+      console.log('Grading scale debug:', { 
+        customGradingScale, 
+        gradingScale, 
+        available: Object.keys(DEFAULT_GRADING_SCALES),
+        selected: DEFAULT_GRADING_SCALES[gradingScale]
+      });
+      const selectedGradingScale = customGradingScale || DEFAULT_GRADING_SCALES[gradingScale] || DEFAULT_GRADING_SCALES.traditional;
+      
+      // Create quiz data with no undefined values
       const quizData = {
         title: sanitizedTitle,
         questions: sanitizedQuestions,
-        classId: selectedClass.id,
-        deadline: quizDeadline || null,
+        classId: selectedClass?.id || '',
+        deadline: (quizDeadline && quizDeadline.trim() !== '') ? quizDeadline : null,
+        gradingScale: selectedGradingScale,
+        passingGrade: passingGrade || 70,
+        totalPoints: calculateTotalPoints(sanitizedQuestions),
         createdAt: new Date().toISOString(),
-        createdBy: auth.currentUser.uid
+        createdBy: auth.currentUser?.uid || ''
       };
 
-      await addDoc(collection(db, 'quizzes'), quizData);
+      // Function to remove undefined values recursively
+      const removeUndefined = (obj) => {
+        if (obj === null || obj === undefined) return null;
+        if (typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(removeUndefined);
+        
+        const cleaned = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = removeUndefined(value);
+          }
+        }
+        return cleaned;
+      };
+
+      const cleanedQuizData = removeUndefined(quizData);
+      
+      // Debug: Log the quiz data to check for undefined values
+      console.log('Original questions:', questions);
+      console.log('Sanitized questions:', sanitizedQuestions);
+      console.log('Quiz data before cleaning:', quizData);
+      console.log('Quiz data after cleaning:', cleanedQuizData);
+
+      await addDoc(collection(db, 'quizzes'), cleanedQuizData);
       
       showToast('Quiz created successfully!', 'success');
       setShowQuizModal(false);
       setQuizTitle('');
       setQuizDeadline('');
-      setQuestions([{ type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+      setQuestions([{ type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 }]);
+      setGradingScale('traditional');
+      setCustomGradingScale(null);
+      setPassingGrade(70);
+      setTotalPoints(1);
       setSelectedClass(null);
       
     } catch (error) {
@@ -584,7 +672,12 @@ export default function TeacherDashboard() {
                 onClick={() => {
                   setShowQuizModal(false);
                   setQuizTitle('');
-                  setQuestions([{ question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+                  setQuizDeadline('');
+                  setQuestions([{ type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 }]);
+                  setGradingScale('traditional');
+                  setCustomGradingScale(null);
+                  setPassingGrade(70);
+                  setTotalPoints(1);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -604,6 +697,49 @@ export default function TeacherDashboard() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="e.g., Chapter 1 Quiz"
                 />
+              </div>
+
+              {/* Grading Configuration */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-800 mb-3">Grading Configuration</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Grading Scale</label>
+                    <select
+                      value={gradingScale}
+                      onChange={(e) => setGradingScale(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="traditional">Traditional A-F</option>
+                      <option value="plusMinus">Plus/Minus System</option>
+                      <option value="passFail">Pass/Fail</option>
+                      <option value="excellent">Excellence Scale</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Passing Grade (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={passingGrade}
+                      onChange={(e) => setPassingGrade(parseInt(e.target.value) || 70)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mt-3 p-3 bg-white rounded border">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Total Points:</span>
+                    <span className="text-lg font-bold text-green-600">{totalPoints}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatically calculated from individual question points
+                  </p>
+                </div>
               </div>
               {/* ADD THIS DEADLINE SECTION */}
   <div>
@@ -627,6 +763,17 @@ export default function TeacherDashboard() {
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-semibold text-gray-700">Question {qIndex + 1}</h4>
                     <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <label className="text-xs text-gray-600">Points:</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={q.points || 1}
+                          onChange={(e) => handlePointsChange(qIndex, e.target.value)}
+                          className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
                       <select
                         value={q.type}
                         onChange={(e) => handleQuestionTypeChange(qIndex, e.target.value)}
@@ -717,7 +864,11 @@ export default function TeacherDashboard() {
                   setShowQuizModal(false);
                   setQuizTitle('');
                   setQuizDeadline('');
-                  setQuestions([{ type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0 }]);
+                  setQuestions([{ type: 'multiple-choice', question: '', options: ['', '', '', ''], correctAnswer: 0, points: 1 }]);
+                  setGradingScale('traditional');
+                  setCustomGradingScale(null);
+                  setPassingGrade(70);
+                  setTotalPoints(1);
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
               >
