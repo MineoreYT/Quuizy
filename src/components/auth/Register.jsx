@@ -119,7 +119,7 @@ export default function Register() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check Your Email!</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Check Your Email Or Spam Email!</h2>
           <p className="text-gray-600 mb-6">
             We've sent a verification link to <span className="font-semibold">{registeredEmail}</span>. 
             Please click the link to verify your account and complete registration.
