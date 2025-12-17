@@ -28,7 +28,9 @@ export default function ClassDetails({ classId, onBack }) {
 
   const fetchClassData = async () => {
     try {
+      console.log('Fetching class data for classId:', classId);
       const classDoc = await getDoc(doc(db, 'classes', classId));
+      console.log('Class doc fetched successfully:', classDoc.exists());
       
       if (classDoc.exists()) {
         const data = classDoc.data();
@@ -36,6 +38,7 @@ export default function ClassDetails({ classId, onBack }) {
 
         // Fetch student details
         if (data.students && data.students.length > 0) {
+          console.log('Fetching student details for:', data.students);
           const studentPromises = data.students.map(async (studentId) => {
             const studentDoc = await getDoc(doc(db, 'users', studentId));
             if (studentDoc.exists()) {
@@ -45,13 +48,16 @@ export default function ClassDetails({ classId, onBack }) {
           });
           const studentData = await Promise.all(studentPromises);
           setStudents(studentData.filter(s => s !== null));
+          console.log('Student data fetched successfully');
         }
 
         // Fetch quizzes for this class
+        console.log('Fetching quizzes for class:', classId);
         const q = query(collection(db, 'quizzes'), where('classId', '==', classId));
         const quizSnapshot = await getDocs(q);
         const quizData = quizSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setQuizzes(quizData);
+        console.log('Quizzes fetched successfully:', quizData.length);
 
         // Fetch lessons for this class
         const lessonsQuery = query(collection(db, 'lessons'), where('classId', '==', classId));
