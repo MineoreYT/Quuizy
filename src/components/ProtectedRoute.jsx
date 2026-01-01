@@ -44,7 +44,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
     const handleLogout = async () => {
       await auth.signOut();
-      window.location.href = '/login';
+      window.location.hash = '#/login';
     };
 
     return (

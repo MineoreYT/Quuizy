@@ -430,7 +430,7 @@ export default function TeacherDashboard() {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      window.location.href = '/login';
+      window.location.hash = '#/login';
     } catch (error) {
       console.error('Error logging out:', error);
     }

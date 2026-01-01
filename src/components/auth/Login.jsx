@@ -62,19 +62,12 @@ export default function Login() {
         return;
       }
 
-      // Replace the success console.log with this:
-if (!result.user.emailVerified) {
-  setShowVerificationWarning(true);
-  setIsLoading(false);
-  return;
-}
-
-// Redirect based on role
-const userDoc = await getDoc(doc(db, 'users', result.user.uid));
-if (userDoc.exists()) {
-  const role = userDoc.data().role;
-  window.location.href = role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard';
-}
+      // Redirect based on role
+      const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+      if (userDoc.exists()) {
+        const role = userDoc.data().role;
+        window.location.hash = role === 'teacher' ? '#/teacher/dashboard' : '#/student/dashboard';
+      }
       
     } catch (error) {
       let errorMessage = 'Login failed. Please try again.';
@@ -189,7 +182,7 @@ if (userDoc.exists()) {
               />
               <span className="ml-2 text-gray-600">Remember me</span>
             </label>
-            <a href="/forgot-password" className="text-indigo-600 hover:text-indigo-700 font-medium">
+            <a href="#/forgot-password" className="text-indigo-600 hover:text-indigo-700 font-medium">
               Forgot password?
             </a>
           </div>
@@ -213,7 +206,7 @@ if (userDoc.exists()) {
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Don't have an account?{' '}
-          <a href="/register" className="text-indigo-600 hover:text-indigo-700 font-medium">
+          <a href="#/register" className="text-indigo-600 hover:text-indigo-700 font-medium">
             Register here
           </a>
         </div>

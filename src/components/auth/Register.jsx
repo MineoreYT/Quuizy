@@ -125,7 +125,7 @@ export default function Register() {
             Please click the link to verify your account and complete registration.
           </p>
           <button
-            onClick={() => window.location.href = '/login'}
+            onClick={() => window.location.hash = '#/login'}
             className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"
           >
             Go to Login
@@ -279,7 +279,7 @@ export default function Register() {
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <a href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
+          <a href="#/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
             Login here
           </a>
         </div>
