@@ -45,6 +45,11 @@ jobs:
     - name: Capacitor sync
       run: npx cap sync android
 
+    - name: Remove invalid SVG icon files
+      run: |
+        find android -name "*.svg" -type f -delete || true
+        echo "Removed any SVG files from Android resources"
+
     - name: Try SDK 35 first, fallback to compatible versions
       run: |
         # First try with SDK 35 if available
