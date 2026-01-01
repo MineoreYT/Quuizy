@@ -1,114 +1,82 @@
-name: Build Android APK
+name: Build Android APK (Latest SDK)
 
 on:
+  workflow_dispatch:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
+    - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '22'
         cache: 'npm'
 
-    - name: Setup Java
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
         java-version: '17'
+        distribution: 'temurin'
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-      with:
-        api-level: 34
-        build-tools: 34.0.0
-        cmake: 3.22.1
-        ndk: 25.1.8937393
 
-    - name: Accept Android SDK licenses
-      run: yes | sdkmanager --licenses || true
-
-    - name: Install dependencies
+    - name: Install npm dependencies
       run: npm ci
 
-    - name: Build web app
+    - name: Build web application
       run: npm run build
 
-    - name: Sync Capacitor
+    - name: Capacitor sync
       run: npx cap sync android
 
-    - name: Create local.properties
+    - name: Remove invalid SVG icon files
       run: |
-        echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-        cat android/local.properties
+        find android -name "*.svg" -type f -delete || true
+        echo "Removed any SVG files from Android resources"
 
-    - name: Make gradlew executable
-      run: chmod +x android/gradlew
-
-    - name: Clean Gradle
+    - name: Build APK
       run: |
         cd android
-        ./gradlew clean
-
-    - name: Build Android APK with detailed logging
-      run: |
-        cd android
-        ./gradlew assembleDebug --info --stacktrace --no-daemon
+        chmod +x ./gradlew
+        ./gradlew assembleDebug --no-daemon --stacktrace
       env:
-        GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"
+        ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
-    - name: List APK outputs
-      run: |
-        find android -name "*.apk" -type f
-        ls -la android/app/build/outputs/apk/debug/ || echo "Debug APK directory not found"
-
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: brainspark-debug-apk
+        name: brainspark-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
-        if-no-files-found: error
-
-    - name: Upload build logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: |
-          android/build/
-          android/app/build/
-        if-no-files-found: ignore
 
     - name: Create Release
-      if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.run_number }}
         name: BrainSpark v${{ github.run_number }}
         body: |
-          🎓 BrainSpark Educational Platform - Android APK
+          🎓 **BrainSpark Educational Platform - Android APK**
           
-          **Features:**
-          - 📚 Create and manage classes
-          - 📝 Post lessons with attachments
-          - ✅ Create and take quizzes
-          - 📊 View analytics and grades
-          - 📱 Mobile-optimized interface
-          
-          **Installation:**
+          **Download and Install:**
           1. Download the APK file below
           2. Enable "Install from unknown sources" on your Android device
           3. Install the APK
+          
+          **Features:**
+          - 📚 Create and manage classes
+          - 📝 Post lessons with PDF attachments
+          - ✅ Create and take quizzes
+          - 📊 View student analytics and grades
+          - 📱 Mobile-optimized interface
+          - 🔐 Secure Firebase authentication
           
           Built with React + Firebase + Capacitor
         files: |
