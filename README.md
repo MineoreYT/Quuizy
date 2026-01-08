@@ -44,7 +44,7 @@ A modern, full-featured online quiz platform built with React, Firebase, and Tai
 
 1. **Clone the repository**
 ```bash
-git clone <your-repo-url>
+git clone <https://github.com/MineoreYT/BrainsSpark>
 cd quizzie
 ```
 
